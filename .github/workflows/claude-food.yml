@@ -1,0 +1,56 @@
+name: Claude leert nieuw product
+
+# De app maakt voor een niet-herkend product een issue met het label
+# "food-request" aan. Claude zoekt de voedingswaarden op, voegt het product toe
+# aan public/data/foods-extra.json en sluit het issue. De Pages-deploy pikt de
+# wijziging daarna automatisch op.
+
+on:
+  issues:
+    types: [opened, labeled]
+
+jobs:
+  add-food:
+    if: contains(github.event.issue.labels.*.name, 'food-request')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          claude_args: '--allowedTools "Bash(git:*),Read,Write,Edit,Glob,Grep,WebSearch,WebFetch"'
+          prompt: |
+            Je onderhoudt de voedingsdatabase van FoodTrack, een Nederlandse
+            calorie-tracker. Issue #${{ github.event.issue.number }} vraagt om
+            een nieuw product:
+
+            Titel: ${{ github.event.issue.title }}
+
+            Doe het volgende:
+            1. Lees de gesproken tekst uit de issue-titel (na "Nieuw product:").
+            2. Bepaal betrouwbare voedingswaarden per 100 gram (kcal, eiwit,
+               koolhydraten, vet) voor dit product. Gebruik bij voorkeur
+               NEVO/Voedingscentrum-achtige waarden; zoek op internet als je
+               het niet zeker weet.
+            3. Bedenk realistische Nederlandse porties (bijv. stuk, plak,
+               handje, glas) met grammen, en spreektaal-aliassen inclusief
+               meervoudsvormen en de oorspronkelijke gesproken tekst.
+            4. Voeg het product toe aan public/data/foods-extra.json in
+               hetzelfde schema als src/data/foods.json (velden: id, name,
+               cat, aliases, per100 {kcal,p,c,f}, portions [{n,g,a}]). Het id
+               moet uniek zijn ten opzichte van beide bestanden.
+            5. Valideer dat het bestand geldige JSON blijft.
+            6. Commit en push de wijziging naar de default branch met een
+               duidelijke commitboodschap.
+            7. Reageer kort op het issue met de gebruikte waarden per 100 g en
+               de porties, en sluit het issue.
+
+            Als de issue-titel geen echt voedingsmiddel bevat, leg dat dan uit
+            in een reactie en sluit het issue zonder iets te wijzigen.

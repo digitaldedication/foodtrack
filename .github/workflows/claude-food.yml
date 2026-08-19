@@ -11,7 +11,7 @@ on:
 
 jobs:
   add-food:
-    if: contains(github.event.issue.labels.*.name, 'food-request')
+    if: contains(github.event.issue.labels.*.name, 'food-request') || startsWith(github.event.issue.title, 'Nieuw product:')
     runs-on: ubuntu-latest
     permissions:
       contents: write

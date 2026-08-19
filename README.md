@@ -6,8 +6,12 @@ calorieën, eiwitten, koolhydraten en vetten dat zijn en telt het bij je dag op.
 
 - **PWA op GitHub Pages** — geen server, geen kosten. Je gegevens staan alleen
   op je eigen telefoon (localStorage).
-- **Nederlandse voedingsdatabase** — ±200 producten met NEVO-achtige waarden,
-  porties ("handje", "opscheplepel", "flesje") en spreektaal-aliassen.
+- **Nederlandse voedingsdatabase** — ±200 basisproducten met NEVO-achtige
+  waarden, porties ("handje", "opscheplepel", "flesje") en spreektaal-aliassen.
+- **Merkproducten via Open Food Facts** — de top ±10.000 Nederlandse producten
+  (Unox, Optimel, Calvé, AH-huismerk, …) zitten gebundeld in de app; alles wat
+  daar niet in zit wordt live opgezocht in de volledige Open Food
+  Facts-database (2M+ producten) en daarna lokaal onthouden.
 - **Slimme parser** — begrijpt telwoorden ("twee", "anderhalve"), grammen
   ("200 gram kwark"), porties ("een halve zak chips") en samenstellingen
   ("boterham met pindakaas" = brood + beleg).
@@ -64,6 +68,8 @@ npm run build    # typecheck + productie-build in dist/
 | Pad | Wat |
 | --- | --- |
 | `src/data/foods.json` | Basisvoedingsdatabase (per 100 g + porties + aliassen) |
+| `public/data/foods-branded.json` | Top-10.000 NL-merkproducten uit Open Food Facts |
+| `scripts/build-branded-db.mjs` | Bouwt/ververst de merkenlijst (maandelijks via Action) |
 | `public/data/foods-extra.json` | Door Claude aangeleerde producten |
 | `src/lib/parser.ts` | Nederlandse spraakparser (hoeveelheden, porties, fuzzy matching) |
 | `src/lib/store.ts` | Opslag in localStorage + React-hooks |
@@ -77,8 +83,22 @@ De Siri-shortcut opent
 de app parst, logt en toont een bevestiging. Dubbel afvuren binnen 90 seconden
 wordt genegeerd.
 
+### Hoe een gesproken zin wordt opgelost
+
+1. **Basisdatabase** (offline, direct): generieke producten en porties.
+2. **Gebundelde merkenlijst** (offline, direct): top-10.000 NL-producten uit
+   Open Food Facts, gerangschikt op populariteit.
+3. **Live Open Food Facts** (online): de volledige database van 2M+ producten.
+4. **Claude** (via issue): voor alles wat nergens gevonden wordt, zoals
+   snackbar- en restaurantgerechten.
+
+Wat laag 2–3 vindt, wordt lokaal onthouden en werkt daarna offline.
+
 ## Privacy
 
 Er is geen backend: loggings staan uitsluitend in de browseropslag van je
-telefoon. Alleen de tekst van een *onbekend* product komt (via een issue) op
-GitHub terecht.
+telefoon. Alleen de tekst van een *onbekend* product verlaat je telefoon: als
+zoekopdracht naar Open Food Facts en eventueel (via een issue) naar GitHub.
+
+Productdata: © Open Food Facts-bijdragers, beschikbaar onder de
+[Open Database License](https://opendatacommons.org/licenses/odbl/1-0/).

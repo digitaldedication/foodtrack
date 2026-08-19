@@ -1,0 +1,30 @@
+name: Ververs merkproducten-database
+
+# Haalt maandelijks de populairste Nederlandse producten opnieuw op uit Open
+# Food Facts, zodat de gebundelde merkenlijst actueel blijft.
+
+on:
+  schedule:
+    - cron: '0 4 1 * *'
+  workflow_dispatch:
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/build-branded-db.mjs 100
+      - name: Commit bij wijzigingen
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if ! git diff --quiet public/data/foods-branded.json; then
+            git add public/data/foods-branded.json
+            git commit -m "Merkproducten-database ververst vanuit Open Food Facts"
+            git push
+          fi

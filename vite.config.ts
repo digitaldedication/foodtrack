@@ -48,6 +48,11 @@ export default defineConfig({
             urlPattern: /\/data\/foods-extra\.json$/,
             handler: 'NetworkFirst',
             options: { cacheName: 'foods-extra', networkTimeoutSeconds: 3 }
+          },
+          {
+            urlPattern: /\/data\/foods-branded\.json$/,
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'foods-branded' }
           }
         ]
       }

@@ -4,6 +4,7 @@ import EntryCard from '../components/EntryCard'
 import { healthShortcutUrl, isIos } from '../lib/health'
 import type { FoodIndex } from '../lib/parser'
 import { parsePhrase } from '../lib/parser'
+import { resolveUnknowns } from '../lib/resolve'
 import { addEntry, getEntry, isDuplicate, newId, useSettings } from '../lib/store'
 import type { LogEntry } from '../types'
 
@@ -17,10 +18,11 @@ export default function LogPage({ index }: Props) {
   const [text, setText] = useState('')
   const [entryId, setEntryId] = useState<string | null>(null)
   const [duplicate, setDuplicate] = useState(false)
+  const [busy, setBusy] = useState(false)
   const handledDeeplink = useRef(false)
 
-  const logText = (raw: string): void => {
-    if (!index) return
+  const logText = async (raw: string): Promise<void> => {
+    if (!index || busy) return
     const trimmed = raw.trim()
     if (!trimmed) return
     const now = Date.now()
@@ -28,8 +30,16 @@ export default function LogPage({ index }: Props) {
       setDuplicate(true)
       return
     }
-    const items = parsePhrase(index, trimmed)
+    let items = parsePhrase(index, trimmed)
     if (items.length === 0) return
+    setBusy(true)
+    try {
+      // Onbekende producten: eerst de gebundelde merkenlijst, dan live
+      // Open Food Facts. Gevonden producten worden onthouden.
+      items = await resolveUnknowns(items)
+    } finally {
+      setBusy(false)
+    }
     const entry: LogEntry = { id: newId(), ts: now, rawText: trimmed, items }
     addEntry(entry)
     setEntryId(entry.id)
@@ -102,8 +112,8 @@ export default function LogPage({ index }: Props) {
             autoComplete="off"
           />
         </div>
-        <button className="knop" onClick={() => logText(text)} disabled={!index}>
-          {index ? 'Log het' : 'Database laden…'}
+        <button className="knop" onClick={() => logText(text)} disabled={!index || busy}>
+          {!index ? 'Database laden…' : busy ? 'Product opzoeken…' : 'Log het'}
         </button>
       </div>
 

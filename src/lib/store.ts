@@ -1,9 +1,10 @@
 import { useSyncExternalStore } from 'react'
-import type { LogEntry, Settings } from '../types'
+import type { Food, LogEntry, Settings } from '../types'
 import { DEFAULT_SETTINGS } from '../types'
 
 const LOG_KEY = 'foodtrack.log.v1'
 const SETTINGS_KEY = 'foodtrack.settings.v1'
+const LEARNED_KEY = 'foodtrack.learned.v1'
 
 type Listener = () => void
 const listeners = new Set<Listener>()
@@ -67,6 +68,21 @@ export function getEntry(id: string): LogEntry | undefined {
 /** True when the same text was logged in the last 90 seconds (deep-link double fire). */
 export function isDuplicate(rawText: string, now: number): boolean {
   return readLog().some((e) => e.rawText === rawText && now - e.ts < 90_000)
+}
+
+/** Products learned at runtime (branded / Open Food Facts matches). */
+export function getLearnedFoods(): Food[] {
+  try {
+    return JSON.parse(localStorage.getItem(LEARNED_KEY) ?? '[]') as Food[]
+  } catch {
+    return []
+  }
+}
+
+export function saveLearnedFood(food: Food) {
+  const all = getLearnedFoods()
+  if (all.some((f) => f.id === food.id)) return
+  localStorage.setItem(LEARNED_KEY, JSON.stringify([...all, food]))
 }
 
 export function dayKey(ts: number): string {

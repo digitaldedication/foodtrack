@@ -71,8 +71,10 @@ export default function Guide() {
               Siri-loggings daar niet terug.</li>
             <li>Zeg hoeveelheden gewoon zoals je praat: <em>“twee bitterkoekjes”</em>, <em>“een handje noten”</em>,{' '}
               <em>“200 gram kwark”</em>, <em>“een halve zak chips”</em>.</li>
-            <li>Kent de app een product niet? Tik dan op <em>“laat Claude dit toevoegen”</em> bij de logging — Claude
-              zoekt de voedingswaarden op en de app kent het product daarna voorgoed.</li>
+            <li>Merkproducten werken ook: <em>“een snelle jelle”</em>, <em>“een flesje optimel”</em> — de app kent de
+              10.000 populairste Nederlandse producten en zoekt de rest live op in Open Food Facts (2M+ producten).</li>
+            <li>Wordt een product nérgens gevonden? Tik dan op <em>“laat Claude dit toevoegen”</em> bij de logging —
+              Claude zoekt de voedingswaarden op en de app kent het product daarna voorgoed.</li>
           </ul>
         </div>
       </div>

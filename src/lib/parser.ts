@@ -280,6 +280,17 @@ function portionAliasSet(food: Food): Set<string> {
   return s
 }
 
+/**
+ * Split a spoken segment into a quantity and the remaining product words.
+ * Used by the branded-products matcher for segments the base parser
+ * couldn't resolve ("twee snelle jelles" → qty 2, words ["snelle","jelles"]).
+ */
+export function stripQuantity(segment: string): { qty: number; grams: number | null; words: string[] } {
+  const words = normalize(segment).split(' ').filter(Boolean)
+  const q = parseQuantity(words, new Set())
+  return { qty: q.qty, grams: q.grams, words: q.leftovers }
+}
+
 /** Parse a full spoken phrase into logged items. */
 export function parsePhrase(index: FoodIndex, phrase: string): LoggedItem[] {
   const norm = normalize(phrase)

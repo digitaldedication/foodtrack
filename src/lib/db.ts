@@ -1,14 +1,17 @@
 import baseDb from '../data/foods.json'
 import type { Food, FoodDb } from '../types'
 import { FoodIndex } from './parser'
+import { getLearnedFoods, saveLearnedFood } from './store'
 
 let index: FoodIndex | null = null
 let foods: Food[] = []
 
 /**
- * The base database ships with the app bundle. `data/foods-extra.json` is a
- * separate asset that the Claude GitHub Action extends with newly learned
- * foods, so the app picks those up without a full redeploy (network-first).
+ * Three layers of foods feed the parser index:
+ * 1. de basisdatabase in de bundel;
+ * 2. `data/foods-extra.json`, door de Claude GitHub Action aangevuld
+ *    (network-first, dus zonder volledige redeploy opgepikt);
+ * 3. producten die de app zelf heeft geleerd via Open Food Facts.
  */
 export async function loadFoodIndex(): Promise<FoodIndex> {
   if (index) return index
@@ -23,10 +26,23 @@ export async function loadFoodIndex(): Promise<FoodIndex> {
       }
     }
   } catch {
-    // Offline or not yet published — the base database is enough.
+    // Offline of nog niet gepubliceerd — de basisdatabase volstaat.
+  }
+  const ids = new Set(foods.map((f) => f.id))
+  for (const f of getLearnedFoods()) {
+    if (!ids.has(f.id)) foods.push(f)
   }
   index = new FoodIndex(foods)
   return index
+}
+
+/** Persist a runtime-matched product and make it matchable immediately. */
+export function registerLearnedFood(food: Food) {
+  saveLearnedFood(food)
+  if (index && !foods.some((f) => f.id === food.id)) {
+    foods.push(food)
+    index.add(food)
+  }
 }
 
 export function allFoods(): Food[] {

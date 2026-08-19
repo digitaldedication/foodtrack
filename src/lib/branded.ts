@@ -131,10 +131,35 @@ function round1(x: number): number {
   return Math.round(x * 10) / 10
 }
 
+// Veel Open Food Facts-producten missen een portiegrootte. Deze heuristiek
+// schat er dan één op basis van het producttype, zodat "een snelle jelle"
+// als één plak kruidkoek telt en niet als 100 gram.
+const SERVING_GUESSES: Array<[RegExp, number]> = [
+  [/drink|melk|sap|juice|cola|limonade|frisdrank|ice\s?tea|smoothie|energy|bier|water|zero|light/, 250],
+  [/soep|soup|noodles/, 250],
+  [/pizza/, 320],
+  [/yoghurt|kwark|vla|skyr|pap|dessert/, 150],
+  [/chips|borrelnoot|noten|nootjes|popcorn/, 25],
+  [/chocolade|bonbon|praline/, 25],
+  [/pindakaas|jam|stroop|smeer|spread|hummus|houmous|saus|mayo|ketchup/, 15],
+  [/koek|cake|wafel|reep|bar|biscuit|cracker|beschuit/, 35],
+  [/kaas/, 30],
+  [/brood|bol|croissant/, 50]
+]
+
+export function guessServing(prod: BrandedProduct): number {
+  if (prod.s) return prod.s
+  const haystack = `${prod.n} ${prod.b ?? ''}`.toLowerCase()
+  for (const [re, grams] of SERVING_GUESSES) {
+    if (re.test(haystack)) return grams
+  }
+  return 100
+}
+
 /** Turn a matched branded product into a logged item for the spoken segment. */
 export function brandedToItem(prod: BrandedProduct, segment: string): LoggedItem {
   const { qty, grams } = stripQuantity(segment)
-  const portionGrams = prod.s ?? 100
+  const portionGrams = guessServing(prod)
   const totalGrams = grams ?? qty * portionGrams
   const factor = totalGrams / 100
   return {
@@ -142,7 +167,7 @@ export function brandedToItem(prod: BrandedProduct, segment: string): LoggedItem
     name: prod.b ? `${prod.n} (${prod.b})` : prod.n,
     rawText: segment,
     qty,
-    portionName: grams ? null : prod.s ? 'portie' : 'per 100 g',
+    portionName: grams ? null : prod.s ? 'portie' : 'portie (geschat)',
     grams: Math.round(totalGrams),
     kcal: Math.round(prod.k * factor),
     p: round1(prod.p * factor),

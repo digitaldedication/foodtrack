@@ -1,4 +1,4 @@
-import { brandedToItem, loadBranded, searchBranded, searchOpenFoodFacts } from './branded'
+import { brandedToItem, guessServing, loadBranded, searchBranded, searchOpenFoodFacts } from './branded'
 import type { BrandedProduct } from './branded'
 import { registerLearnedFood } from './db'
 import { stripQuantity } from './parser'
@@ -26,7 +26,7 @@ function toLearnedFood(prod: BrandedProduct, spokenWords: string[]): Food {
     cat: 'geleerd',
     aliases: [spokenWords.join(' '), prod.n],
     per100: { kcal: prod.k, p: prod.p, c: prod.c, f: prod.f },
-    portions: [{ n: prod.s ? 'portie' : 'per 100 g', g: prod.s ?? 100, a: ['portie', 'stuk', 'stuks', 'verpakking', 'zakje', 'flesje', 'blikje'] }]
+    portions: [{ n: prod.s ? 'portie' : 'portie (geschat)', g: guessServing(prod), a: ['portie', 'stuk', 'stuks', 'verpakking', 'zakje', 'flesje', 'blikje'] }]
   }
 }
 

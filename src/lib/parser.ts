@@ -280,6 +280,17 @@ function portionAliasSet(food: Food): Set<string> {
   return s
 }
 
+// Generic container/portion words that say how much, not what: irrelevant for
+// matching a branded product ("een flesje optimel" → zoek op "optimel").
+const CONTAINER_WORDS = new Set([
+  'glas', 'glazen', 'fles', 'flesje', 'blik', 'blikje', 'kop', 'kopje',
+  'beker', 'bekertje', 'mok', 'zak', 'zakje', 'bak', 'bakje', 'schaaltje',
+  'kom', 'kommetje', 'bord', 'bordje', 'portie', 'stuk', 'stuks', 'stukje',
+  'plak', 'plakje', 'reep', 'reepje', 'handje', 'handjevol', 'pak', 'pakje',
+  'verpakking', 'bol', 'bolletje', 'snee', 'sneetje', 'doosje', 'kuipje',
+  'potje', 'flesjes', 'blikjes', 'zakjes', 'schijfje', 'puntje'
+])
+
 /**
  * Split a spoken segment into a quantity and the remaining product words.
  * Used by the branded-products matcher for segments the base parser
@@ -287,7 +298,7 @@ function portionAliasSet(food: Food): Set<string> {
  */
 export function stripQuantity(segment: string): { qty: number; grams: number | null; words: string[] } {
   const words = normalize(segment).split(' ').filter(Boolean)
-  const q = parseQuantity(words, new Set())
+  const q = parseQuantity(words, CONTAINER_WORDS)
   return { qty: q.qty, grams: q.grams, words: q.leftovers }
 }
 

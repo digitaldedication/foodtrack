@@ -50,6 +50,21 @@ describe('brandedToItem', () => {
   })
 })
 
+describe('guessServing (heuristiek zonder portiegrootte)', () => {
+  it('schat een plak kruidkoek op 35 g', () => {
+    const item = brandedToItem({ n: 'Kruidkoek', b: 'Snelle Jelle', k: 305, p: 2.4, c: 69.7, f: 1 }, 'een snelle jelle')
+    expect(item.grams).toBe(35)
+    expect(item.kcal).toBe(Math.round(305 * 0.35))
+    expect(item.portionName).toBe('portie (geschat)')
+  })
+
+  it('schat een drinkyoghurt op 250 ml', () => {
+    const item = brandedToItem({ n: 'Drinkyoghurt limoen', b: 'Optimel', k: 31, p: 3.2, c: 3.6, f: 0 }, 'een flesje optimel')
+    expect(item.grams).toBe(250)
+    expect(item.kcal).toBe(Math.round(31 * 2.5))
+  })
+})
+
 describe('stripQuantity', () => {
   it('haalt hoeveelheid en productwoorden uit een zin', () => {
     const r = stripQuantity('twee snelle jelles')

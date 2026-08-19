@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 /**
- * Haalt de populairste Nederlandse producten (met merknamen) op uit Open Food
- * Facts en schrijft ze als compacte dataset naar public/data/foods-branded.json.
- * De app gebruikt dit als tweede laag naast de basisdatabase; wat hier niet in
- * zit wordt live via de Open Food Facts API opgezocht.
+ * Haalt de 10.000 populairste Nederlandse producten (met merknamen) op uit
+ * Open Food Facts (search-a-licious API) en schrijft ze als compacte dataset
+ * naar public/data/foods-branded.json. De app gebruikt dit als tweede laag
+ * naast de basisdatabase; wat hier niet in zit wordt live opgezocht.
  *
  * Draaien: node scripts/build-branded-db.mjs [aantal-paginas]
  */
@@ -21,23 +21,18 @@ const FIELDS = [
   'brands',
   'nutriments',
   'serving_quantity',
-  'serving_size',
-  'unique_scans_n'
+  'serving_size'
 ].join(',')
 
 function searchUrl(page) {
   const p = new URLSearchParams({
-    action: 'process',
-    tagtype_0: 'countries',
-    tag_contains_0: 'contains',
-    tag_0: 'netherlands',
-    sort_by: 'unique_scans_n',
+    q: 'countries_tags:"en:netherlands"',
+    sort_by: '-unique_scans_n',
     page_size: String(PAGE_SIZE),
     page: String(page),
-    json: '1',
     fields: FIELDS
   })
-  return `https://nl.openfoodfacts.org/cgi/search.pl?${p.toString()}`
+  return `https://search.openfoodfacts.org/search?${p.toString()}`
 }
 
 function round1(x) {
@@ -77,7 +72,7 @@ for (let page = 1; page <= PAGES; page++) {
     }
   }
   if (!data) throw new Error(`pagina ${page} bleef falen`)
-  for (const prod of data.products ?? []) {
+  for (const prod of data.hits ?? []) {
     const name = (prod.product_name_nl || prod.product_name || '').trim()
     if (!name || name.length < 3) continue
     const nut = prod.nutriments ?? {}
@@ -87,7 +82,8 @@ for (let page = 1; page <= PAGES; page++) {
     const f = nut.fat_100g
     if (![k, p, c, f].every((v) => typeof v === 'number' && Number.isFinite(v))) continue
     if (k < 0 || k > 950 || p < 0 || c < 0 || f < 0) continue
-    const brand = (prod.brands || '').split(',')[0].trim()
+    const rawBrands = prod.brands
+    const brand = (Array.isArray(rawBrands) ? rawBrands[0] ?? '' : (rawBrands || '').split(',')[0]).trim()
     const key = `${name.toLowerCase()}|${brand.toLowerCase()}`
     if (seen.has(key)) continue
     seen.add(key)
@@ -97,8 +93,7 @@ for (let page = 1; page <= PAGES; page++) {
     if (s) entry.s = s
     products.push(entry)
   }
-  // Open Food Facts vraagt max ~10 zoekopdrachten per minuut.
-  if (page < PAGES) await sleep(12000)
+  if (page < PAGES) await sleep(3000)
 }
 
 const out = {

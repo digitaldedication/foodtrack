@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { chatWithClaude } from '../lib/ai'
+import { aiActive } from '../lib/cloud'
 import { handleChatMessage } from '../lib/chat'
 import { healthShortcutUrl, isIos } from '../lib/health'
 import { useLog, useSettings } from '../lib/store'
@@ -11,6 +12,8 @@ interface Msg {
   text: string
   entry?: LogEntry
   unresolved?: string[]
+  bron?: 'claude' | 'lokaal'
+  fout?: string
 }
 
 // Berichten blijven staan zolang de app open is (module-level, geen opslag).
@@ -67,16 +70,24 @@ export default function Chat() {
     setBusy(true)
     try {
       // Met cloud + Claude actief gaat het gesprek naar de Edge Function;
-      // anders (of bij een fout) handelt de lokale parser het af.
+      // anders (of bij een fout) handelt de lokale parser het af — mét
+      // zichtbare bron, zodat je altijd weet wie er antwoordt.
       const ai = await chatWithClaude(history, trimmed, logRef.current)
       let entry
-      if (ai) {
+      if (ai.kind === 'ok') {
         entry = ai.entry
-        push({ who: 'app', text: ai.reply, entry: ai.entry })
+        push({ who: 'app', text: ai.reply, entry: ai.entry, bron: 'claude' })
       } else {
         const result = await handleChatMessage(trimmed, logRef.current)
         entry = result.entry
-        push({ who: 'app', text: result.reply, entry: result.entry, unresolved: result.unresolvedNames })
+        push({
+          who: 'app',
+          text: result.reply,
+          entry: result.entry,
+          unresolved: result.unresolvedNames,
+          bron: 'lokaal',
+          fout: ai.kind === 'error' ? ai.message : undefined
+        })
       }
       // Automatisch doorzetten naar Apple Health — geen knop nodig.
       if (entry && settings.healthExport && settings.healthAutoOpen && isIos()) {
@@ -174,6 +185,9 @@ export default function Chat() {
     <>
       <header className="app-header">
         <h1>Chat</h1>
+        <span className={`ai-chip${aiActive() ? ' aan' : ''}`}>
+          {aiActive() ? '✦ Claude AI aan' : 'lokale modus'}
+        </span>
       </header>
 
       <div className="chat-berichten">
@@ -201,6 +215,12 @@ export default function Chat() {
                 <Link className="knop klein secundair" style={{ marginTop: 8 }} to={`/producten?naam=${encodeURIComponent(m.unresolved[0])}`}>
                   Toevoegen aan Mijn producten
                 </Link>
+              )}
+              {m.bron && (
+                <div className="chat-bron">
+                  {m.bron === 'claude' ? '✦ Claude' : 'lokaal beantwoord'}
+                  {m.fout ? ` — Claude niet bereikbaar: ${m.fout}` : ''}
+                </div>
               )}
             </div>
           </div>

@@ -17,24 +17,24 @@ interface AiAnswer {
   log: { when: string | null; items: AiItem[] } | null
 }
 
-export interface AiChatResult {
-  reply: string
-  entry?: LogEntry
-}
+export type AiChatResult =
+  | { kind: 'ok'; reply: string; entry?: LogEntry }
+  | { kind: 'error'; message: string }
+  | { kind: 'inactive' }
 
 /**
- * Stuurt het gesprek naar de Claude Edge Function (Supabase). Retourneert null
- * wanneer AI niet actief is of de aanroep faalt — de aanroeper valt dan terug
- * op de lokale chatafhandeling.
+ * Stuurt het gesprek naar de Claude Edge Function (Supabase). 'inactive' als
+ * AI niet is geconfigureerd/aangezet, 'error' met reden als de aanroep faalt —
+ * de aanroeper valt dan terug op de lokale chatafhandeling.
  */
 export async function chatWithClaude(
   history: Array<{ role: 'user' | 'assistant'; content: string }>,
   text: string,
   log: LogEntry[]
-): Promise<AiChatResult | null> {
-  if (!aiActive()) return null
+): Promise<AiChatResult> {
+  if (!aiActive()) return { kind: 'inactive' }
   const supa = getClient()
-  if (!supa) return null
+  if (!supa) return { kind: 'inactive' }
 
   const settings = getSettings()
   const today = entriesForDay(log, dayKey(Date.now()))
@@ -67,7 +67,23 @@ export async function chatWithClaude(
         }
       }
     })
-    if (error || !data?.reply) return null
+    if (error) {
+      // Haal de echte reden uit de response-body als die er is.
+      let detail = error.message ?? 'onbekende fout'
+      try {
+        const ctx = (error as { context?: Response }).context
+        if (ctx) {
+          const body = await ctx.json()
+          if (body?.error) detail = String(body.error)
+        }
+      } catch {
+        // body was geen JSON — houd de basisfoutmelding
+      }
+      return { kind: 'error', message: detail }
+    }
+    if (!data?.reply) {
+      return { kind: 'error', message: 'lege respons van de Edge Function' }
+    }
     const answer = data as AiAnswer
 
     let entry: LogEntry | undefined
@@ -89,8 +105,8 @@ export async function chatWithClaude(
       entry = { id: newId(), ts: Number.isFinite(ts) ? ts : Date.now(), rawText: text, items }
       addEntry(entry)
     }
-    return { reply: answer.reply, entry }
-  } catch {
-    return null
+    return { kind: 'ok', reply: answer.reply, entry }
+  } catch (err) {
+    return { kind: 'error', message: String(err) }
   }
 }

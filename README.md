@@ -124,7 +124,28 @@ calls/dag).
    `https://<ref>.functions.supabase.co/fatsecret-mcp?key=<MCP_KEY>`
 
 Tools voor Claude: `log_eten`, `dag_overzicht`, `verwijder_entry`,
-`zoek_product`.
+`zoek_product`, `mijn_producten`.
+
+### Loggen met je stem (iPhone)
+
+Drie manieren, van snel naar snelst:
+
+1. **Widget op je beginscherm** — houd het beginscherm ingedrukt → **+** →
+   Claude → de widget met de drie knoppen. De microfoonknop opent Claude
+   direct in dicteermodus: één tik, inspreken, klaar.
+2. **Eigen Siri-opdracht** (Opdrachten-app):
+   - Actie **Dicteer tekst** — taal op **Nederlands**, stop na pauze
+   - Actie **Ask Claude** — als prompt de *Gedicteerde tekst*
+   - Noem de opdracht bijv. **Eten loggen** → werkt met "Hey Siri, eten loggen"
+   - Koppel hem daarna aan de **actieknop** (Instellingen → Actieknop →
+     Opdracht) of aan **dubbeltik op de achterkant** (Instellingen →
+     Toegankelijkheid → Aanraken → Tik op achterkant)
+3. **Spraakmodus** in de Claude-app voor een gesproken gesprek heen en weer
+   ("wat heb ik vandaag gegeten?").
+
+Zorg dat de connector aan staat en zet in **Instellingen → Profiel** een
+voorkeursregel dat Claude bij eten altijd direct de connector gebruikt,
+zonder om bevestiging te vragen.
 
 ## Ontwikkelen
 

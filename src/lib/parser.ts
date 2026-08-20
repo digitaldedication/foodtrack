@@ -72,6 +72,10 @@ export class FoodIndex {
     this.entries.sort((x, y) => y.alias.length - x.alias.length)
   }
 
+  removeFood(foodId: string) {
+    this.entries = this.entries.filter((e) => e.food.id !== foodId)
+  }
+
   /** Find the best matching food inside a normalized segment. */
   match(segment: string): { food: Food; matched: string } | null {
     const padded = ` ${segment} `

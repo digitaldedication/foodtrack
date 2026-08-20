@@ -418,6 +418,121 @@ a:focus-visible {
   height: 24px;
 }
 
+/* ---- chat ---- */
+.chat-berichten {
+  min-height: calc(100dvh - 250px);
+  padding-bottom: 76px;
+}
+
+.chat-rij {
+  display: flex;
+  margin-bottom: 10px;
+}
+
+.chat-rij.ik {
+  justify-content: flex-end;
+}
+
+.chat-bubbel {
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  font-size: 15px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+}
+
+.chat-bubbel.ik {
+  background: var(--groen);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+  font-family: var(--font-spoken);
+  font-style: italic;
+  font-size: 17px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .chat-bubbel.ik {
+    color: #141810;
+  }
+}
+
+.chat-bubbel.app {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-bottom-left-radius: 4px;
+}
+
+.chat-invoer {
+  position: fixed;
+  bottom: calc(64px + env(safe-area-inset-bottom));
+  left: 0;
+  right: 0;
+  max-width: 480px;
+  margin: 0 auto;
+  display: flex;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--bg);
+  border-top: 1px solid var(--line);
+}
+
+.chat-invoer input {
+  flex: 1;
+  font-family: var(--font-body);
+  font-size: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 22px;
+  background: var(--card);
+  color: var(--ink);
+}
+
+.chat-mic,
+.chat-verstuur {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.chat-verstuur {
+  background: var(--groen);
+  color: #fff;
+}
+
+.chat-verstuur:disabled {
+  opacity: 0.4;
+}
+
+.chat-mic {
+  background: var(--groen-zacht);
+  color: var(--ink);
+}
+
+.chat-mic.actief {
+  background: var(--danger);
+  color: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .chat-verstuur {
+    color: #141810;
+  }
+}
+
+/* ---- form rows ---- */
+.veld-rij {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
 /* ---- misc ---- */
 .leeg {
   text-align: center;

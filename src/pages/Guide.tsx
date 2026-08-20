@@ -44,7 +44,28 @@ export default function Guide() {
         </div>
       </div>
 
-      <h2 className="sectie-kop">Stap 2 · Apple Health (optioneel)</h2>
+      <h2 className="sectie-kop">Stap 2 · Chat-shortcut (optioneel)</h2>
+      <div className="card">
+        <div className="uitleg-stap">
+          <p style={{ marginBottom: 8 }}>
+            Naast snel loggen is er een <strong>chat</strong> waarin je kunt typen of praten, met tijd erbij
+            (“gisteren om 13:00 een muscle meat gnocchi”) en vragen (“hoeveel kcal heb ik nog?”). Maak er een tweede
+            opdracht voor, bijvoorbeeld <strong>FoodTrack chat</strong>:
+          </p>
+          <ol>
+            <li>Actie <strong>Dicteer tekst</strong> (Nederlands) — of sla deze stap over om alleen de chat te openen.</li>
+            <li>Actie <strong>Codeer URL</strong> (invoer: Gedicteerde tekst).</li>
+            <li>Actie <strong>URL</strong>:<br />
+              <code>{`${appUrl}#/chat?text=`}</code> + variabele <em>URL-gecodeerde tekst</em>.</li>
+            <li>Actie <strong>Open URL’s</strong>.</li>
+          </ol>
+          <p style={{ color: 'var(--ink-soft)', fontSize: 14 }}>
+            In de chat zelf zit ook een microfoonknop (of gebruik de dicteerknop op je toetsenbord).
+          </p>
+        </div>
+      </div>
+
+      <h2 className="sectie-kop">Stap 3 · Apple Health (optioneel)</h2>
       <div className="card">
         <div className="uitleg-stap">
           <p style={{ marginBottom: 8 }}>

@@ -18,6 +18,13 @@ calorieën, eiwitten, koolhydraten en vetten dat zijn en telt het bij je dag op.
 - **Zelflerend via Claude** — een onbekend product wordt met één tik een
   GitHub-issue; Claude zoekt de voedingswaarden op en voegt het product
   automatisch toe aan de database.
+- **Eigen producten & maaltijden** — voeg zelf een maaltijd toe (bijv.
+  "Muscle Meat gnocchi maaltijd" met kcal en macro's per portie); de app
+  onthoudt hem en herkent hem voortaan ook via Siri en chat.
+- **Chat-invoer** — typ of praat in een chatscherm: loggen met tijd ("gisteren
+  om 13:00 een muscle meat gnocchi"), status opvragen ("hoeveel kcal heb ik
+  nog?"), dagoverzicht en ongedaan maken. Ook te openen via een eigen
+  Shortcut met gedicteerde tekst (`#/chat?text=…`).
 - **Doelen** — caloriedoel en macroverdeling (eiwit/koolhydraten/vet) instelbaar.
 - **Apple Health** — optioneel worden loggings via een Shortcut ook in de
   Gezondheid-app gezet.
@@ -85,6 +92,8 @@ wordt genegeerd.
 
 ### Hoe een gesproken zin wordt opgelost
 
+0. **Eigen producten** (offline, direct): zelf toegevoegde maaltijden en
+   eerder geleerde producten.
 1. **Basisdatabase** (offline, direct): generieke producten en porties.
 2. **Gebundelde merkenlijst** (offline, direct): top-10.000 NL-producten uit
    Open Food Facts, gerangschikt op populariteit.

@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { saveSettings, useSettings } from '../lib/store'
 import { macroGoals } from '../types'
 
@@ -61,6 +62,19 @@ export default function SettingsPage() {
             Samen {totalPct}% — zet de verdeling op precies 100% voor kloppende gramdoelen.
           </div>
         )}
+      </div>
+
+      <h2 className="sectie-kop">Producten</h2>
+      <div className="card">
+        <div className="schakel-rij">
+          <div className="tekst">
+            <div className="titel">Mijn producten &amp; maaltijden</div>
+            <div className="uitleg">Voeg eigen maaltijden toe (bijv. “Muscle Meat gnocchi”) met kcal en macro’s — de app onthoudt ze.</div>
+          </div>
+          <Link to="/producten" className="knop klein secundair">
+            Beheren
+          </Link>
+        </div>
       </div>
 
       <h2 className="sectie-kop">Apple Health</h2>

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import type { LogEntry } from '../types'
 import { entryTotals } from '../types'
 import { removeEntry } from '../lib/store'
@@ -38,8 +39,10 @@ export default function EntryCard({ entry, showDelete = true }: Props) {
       {unresolved.map((i) => (
         <div className="onbekend" key={i.rawText}>
           Niet herkend: “{i.rawText}” —{' '}
+          <Link to={`/producten?naam=${encodeURIComponent(i.rawText)}`}>zelf toevoegen</Link>
+          {' of '}
           <a href={newFoodIssueUrl(i.rawText)} target="_blank" rel="noreferrer">
-            laat Claude dit toevoegen
+            laat Claude het opzoeken
           </a>
         </div>
       ))}

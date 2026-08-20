@@ -80,9 +80,27 @@ export function getLearnedFoods(): Food[] {
 }
 
 export function saveLearnedFood(food: Food) {
-  const all = getLearnedFoods()
-  if (all.some((f) => f.id === food.id)) return
+  const all = getLearnedFoods().filter((f) => f.id !== food.id)
   localStorage.setItem(LEARNED_KEY, JSON.stringify([...all, food]))
+  emit()
+}
+
+export function deleteLearnedFood(foodId: string) {
+  localStorage.setItem(LEARNED_KEY, JSON.stringify(getLearnedFoods().filter((f) => f.id !== foodId)))
+  emit()
+}
+
+export function useLearnedFoods(): Food[] {
+  return useSyncExternalStore(subscribe, getLearnedFoodsCached)
+}
+
+let learnedCache: { raw: string | null; foods: Food[] } = { raw: null, foods: [] }
+function getLearnedFoodsCached(): Food[] {
+  const raw = localStorage.getItem(LEARNED_KEY)
+  if (raw !== learnedCache.raw) {
+    learnedCache = { raw, foods: raw ? (JSON.parse(raw) as Food[]) : [] }
+  }
+  return learnedCache.foods
 }
 
 export function dayKey(ts: number): string {

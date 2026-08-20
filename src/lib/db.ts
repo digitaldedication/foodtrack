@@ -1,7 +1,7 @@
 import baseDb from '../data/foods.json'
 import type { Food, FoodDb } from '../types'
 import { FoodIndex } from './parser'
-import { getLearnedFoods, saveLearnedFood } from './store'
+import { deleteLearnedFood, getLearnedFoods, saveLearnedFood } from './store'
 
 let index: FoodIndex | null = null
 let foods: Food[] = []
@@ -36,13 +36,24 @@ export async function loadFoodIndex(): Promise<FoodIndex> {
   return index
 }
 
-/** Persist a runtime-matched product and make it matchable immediately. */
+/** Persist a runtime-matched or user-defined product and make it matchable immediately. */
 export function registerLearnedFood(food: Food) {
   saveLearnedFood(food)
-  if (index && !foods.some((f) => f.id === food.id)) {
+  if (index) {
+    if (foods.some((f) => f.id === food.id)) {
+      foods = foods.filter((f) => f.id !== food.id)
+      index.removeFood(food.id)
+    }
     foods.push(food)
     index.add(food)
   }
+}
+
+/** Remove a learned/user-defined product from storage and the live index. */
+export function removeLearnedFood(foodId: string) {
+  deleteLearnedFood(foodId)
+  foods = foods.filter((f) => f.id !== foodId)
+  index?.removeFood(foodId)
 }
 
 export function allFoods(): Food[] {

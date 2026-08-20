@@ -149,8 +149,10 @@ const TOOLS = [
     name: 'log_eten',
     description:
       'Schrijf een of meer gegeten producten in het FatSecret-dagboek van de gebruiker. ' +
-      'Splits een maaltijd in losse producten. Gebruik als zoekterm de productnaam zoals op de verpakking ' +
-      '(Nederlands of Engels, bijv. "volkoren brood", "pindakaas", "snelle jelle kruidkoek"). ' +
+      'Splits een maaltijd in losse producten. BELANGRIJK: de database is Engelstalig — vertaal Nederlandse ' +
+      'producten naar Engelse zoektermen ("hagelslag" → "chocolate sprinkles", "boterham volkoren" → ' +
+      '"whole wheat bread", "kwark" → "quark"); merknamen onvertaald laten ("stroopwafel" en merken als ' +
+      '"Daelmans" werken wel). Controleer bij twijfel eerst met zoek_product. ' +
       'Geef gram op als de gebruiker een hoeveelheid noemt, anders aantal (standaard 1).',
     inputSchema: {
       type: 'object',

@@ -8,7 +8,7 @@
 
 import Anthropic from 'npm:@anthropic-ai/sdk'
 import { zodOutputFormat } from 'npm:@anthropic-ai/sdk/helpers/zod'
-import { z } from 'npm:zod@3'
+import { z } from 'npm:zod@4'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 
 const corsHeaders = {
@@ -61,11 +61,11 @@ Deno.serve(async (req) => {
   }
   try {
     // Alleen ingelogde gebruikers — het anon-key-JWT alleen is niet genoeg.
-    const authHeader = req.headers.get('Authorization') ?? ''
-    const supa = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, {
-      global: { headers: { Authorization: authHeader } }
-    })
-    const { data: userData, error: userError } = await supa.auth.getUser()
+    // Het JWT expliciet doorgeven: zonder argument zoekt getUser() een lokale
+    // sessie, en die bestaat niet in een Edge Function.
+    const token = (req.headers.get('Authorization') ?? '').replace(/^Bearer\s+/i, '')
+    const supa = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!)
+    const { data: userData, error: userError } = token ? await supa.auth.getUser(token) : { data: null, error: new Error('geen token') }
     if (userError || !userData?.user) {
       return new Response(JSON.stringify({ error: 'Niet ingelogd' }), {
         status: 401,

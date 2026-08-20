@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { NavLink, Route, Routes } from 'react-router-dom'
+import { Navigate, NavLink, Route, Routes } from 'react-router-dom'
 import { initCloud } from './lib/cloud'
 import { loadFoodIndex } from './lib/db'
 import type { FoodIndex } from './lib/parser'
@@ -21,6 +21,19 @@ const tabsRechts = [
   { to: '/instellingen', label: 'Doelen', icon: <path d="M4 6h10v2H4zm12 0h4v2h-4zM4 11h4v2H4zm6 0h10v2H10zM4 16h13v2H4zm15 0h1v2h-1zM14 4v6h2V4zm-6 5v6h2V9zm9 5v6h2v-6z" /> }
 ]
 
+/**
+ * Vangnet voor onbekende routes. De terugkeer van de Supabase magic link
+ * (#access_token=…) mag NIET worden weggenavigeerd voordat supabase-js het
+ * token heeft gelezen; in dat geval tonen we gewoon Vandaag en schoont
+ * supabase de URL zelf op.
+ */
+function CatchAll() {
+  if (/access_token|refresh_token|error_description|token_hash/.test(window.location.hash)) {
+    return <Today />
+  }
+  return <Navigate to="/" replace />
+}
+
 export default function App() {
   const [index, setIndex] = useState<FoodIndex | null>(null)
 
@@ -40,6 +53,7 @@ export default function App() {
         <Route path="/historie" element={<Agenda />} />
         <Route path="/instellingen" element={<SettingsPage />} />
         <Route path="/uitleg" element={<Guide />} />
+        <Route path="*" element={<CatchAll />} />
       </Routes>
       <nav className="tabbar" aria-label="Hoofdmenu">
         {tabsLinks.map((t) => (

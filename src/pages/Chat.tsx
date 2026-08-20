@@ -20,11 +20,13 @@ type SpeechRecognitionLike = {
   lang: string
   continuous: boolean
   interimResults: boolean
-  onresult: ((e: { results: ArrayLike<ArrayLike<{ transcript: string }>> }) => void) | null
+  maxAlternatives: number
+  onresult: ((e: { results: ArrayLike<{ isFinal: boolean; 0: { transcript: string } }> }) => void) | null
   onend: (() => void) | null
-  onerror: (() => void) | null
+  onerror: ((e: { error?: string }) => void) | null
   start(): void
   stop(): void
+  abort(): void
 }
 
 function getSpeech(): (new () => SpeechRecognitionLike) | null {
@@ -40,6 +42,7 @@ export default function Chat() {
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
   const [listening, setListening] = useState(false)
+  const [micHint, setMicHint] = useState<string | null>(null)
   const recRef = useRef<SpeechRecognitionLike | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const handledDeeplink = useRef(false)
@@ -59,17 +62,28 @@ export default function Chat() {
       .slice(-10)
       .map((m) => ({ role: m.who === 'ik' ? ('user' as const) : ('assistant' as const), content: m.text }))
     setText('')
+    setMicHint(null)
     push({ who: 'ik', text: trimmed })
     setBusy(true)
     try {
       // Met cloud + Claude actief gaat het gesprek naar de Edge Function;
       // anders (of bij een fout) handelt de lokale parser het af.
       const ai = await chatWithClaude(history, trimmed, logRef.current)
+      let entry
       if (ai) {
+        entry = ai.entry
         push({ who: 'app', text: ai.reply, entry: ai.entry })
       } else {
         const result = await handleChatMessage(trimmed, logRef.current)
+        entry = result.entry
         push({ who: 'app', text: result.reply, entry: result.entry, unresolved: result.unresolvedNames })
+      }
+      // Automatisch doorzetten naar Apple Health — geen knop nodig.
+      if (entry && settings.healthExport && settings.healthAutoOpen && isIos()) {
+        const url = healthShortcutUrl(entry, settings)
+        window.setTimeout(() => {
+          window.location.href = url
+        }, 900)
       }
     } finally {
       setBusy(false)
@@ -90,26 +104,68 @@ export default function Chat() {
     bottomRef.current?.scrollIntoView({ block: 'end' })
   }, [messages, busy])
 
+  const KEYBOARD_TIP = 'Spraak lukt hier niet — gebruik de dicteerknop (🎤) op je toetsenbord, die werkt altijd.'
+
   const toggleMic = () => {
     if (listening) {
       recRef.current?.stop()
       return
     }
     const SR = getSpeech()
-    if (!SR) return
+    if (!SR) {
+      setMicHint(KEYBOARD_TIP)
+      return
+    }
+    setMicHint(null)
     const rec = new SR()
     rec.lang = 'nl-NL'
     rec.continuous = false
-    rec.interimResults = false
+    rec.interimResults = true
+    rec.maxAlternatives = 1
+    let finalText = ''
+    let gotAnything = false
     rec.onresult = (e) => {
-      const transcript = Array.from({ length: e.results.length }, (_, i) => e.results[i][0].transcript).join(' ')
-      void send(transcript)
+      gotAnything = true
+      let interim = ''
+      for (let i = 0; i < e.results.length; i++) {
+        const r = e.results[i]
+        if (r.isFinal) finalText += r[0].transcript
+        else interim += r[0].transcript
+      }
+      setText(finalText + interim)
     }
-    rec.onend = () => setListening(false)
-    rec.onerror = () => setListening(false)
+    rec.onend = () => {
+      setListening(false)
+      const spoken = finalText.trim()
+      if (spoken) {
+        void send(spoken)
+      } else if (!gotAnything) {
+        // iOS beperkt spraakherkenning in (geïnstalleerde) webapps geregeld.
+        setMicHint(KEYBOARD_TIP)
+      }
+    }
+    rec.onerror = (e) => {
+      setListening(false)
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+        setMicHint('Geen toegang tot de microfoon. Sta die toe via Instellingen → Safari (of gebruik de dicteerknop op je toetsenbord).')
+      } else if (e.error === 'no-speech') {
+        setMicHint('Ik hoorde niets — probeer het nog eens.')
+      } else {
+        setMicHint(KEYBOARD_TIP)
+      }
+    }
     recRef.current = rec
     setListening(true)
-    rec.start()
+    try {
+      rec.start()
+      // Vangnet: sommige iOS-versies laten start() slagen zonder ooit iets terug te geven.
+      window.setTimeout(() => {
+        if (recRef.current === rec && !gotAnything) rec.stop()
+      }, 8000)
+    } catch {
+      setListening(false)
+      setMicHint(KEYBOARD_TIP)
+    }
   }
 
   const speechAvailable = getSpeech() !== null
@@ -150,6 +206,11 @@ export default function Chat() {
           </div>
         ))}
         {busy && <div className="chat-rij app"><div className="chat-bubbel app">…</div></div>}
+        {micHint && (
+          <div className="chat-rij app" role="status">
+            <div className="chat-bubbel app">{micHint}</div>
+          </div>
+        )}
         <div ref={bottomRef} />
       </div>
 

@@ -136,6 +136,7 @@ export function mergeEntries(local: LogEntry[], server: LogEntry[]): { merged: L
 async function pull(): Promise<void> {
   const supa = getClient()
   if (!supa || !currentUser) return
+  lastPullAt = Date.now()
   setSyncState('synct')
 
   const [entriesRes, foodsRes, settingsRes] = await Promise.all([
@@ -257,6 +258,20 @@ export async function initCloud(): Promise<void> {
   emit()
   if (currentUser) await pull()
   window.addEventListener('online', () => void flushQueue())
+  // De geïnstalleerde app en Safari delen geen lokale opslag; door bij elk
+  // openen te verversen blijven ze via de server toch synchroon.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') void pullIfStale()
+  })
+  window.addEventListener('focus', () => void pullIfStale())
+}
+
+let lastPullAt = 0
+
+async function pullIfStale(): Promise<void> {
+  if (!currentUser || Date.now() - lastPullAt < 30_000) return
+  lastPullAt = Date.now()
+  await pull()
 }
 
 export function aiActive(): boolean {

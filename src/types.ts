@@ -57,8 +57,8 @@ export interface Settings {
 export const DEFAULT_SETTINGS: Settings = {
   kcalGoal: 2200,
   macroPct: { p: 25, c: 45, f: 30 },
-  healthExport: false,
-  healthAutoOpen: false,
+  healthExport: true,
+  healthAutoOpen: true,
   healthShortcutName: 'FoodTrack Health'
 }
 

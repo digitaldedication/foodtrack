@@ -65,7 +65,23 @@ export default function Guide() {
         </div>
       </div>
 
-      <h2 className="sectie-kop">Stap 3 · Apple Health (optioneel)</h2>
+      <h2 className="sectie-kop">Stap 3 · Zet FoodTrack als app op je iPhone</h2>
+      <div className="card">
+        <div className="uitleg-stap">
+          <ol>
+            <li>Open deze pagina in <strong>Safari</strong>.</li>
+            <li>Tik op de <strong>deelknop</strong> (vierkant met pijl) → <strong>Zet op beginscherm</strong>.</li>
+            <li>FoodTrack staat nu als app-icoon tussen je andere apps, volledig schermvullend.</li>
+          </ol>
+          <p style={{ color: 'var(--ink-soft)', fontSize: 14 }}>
+            Belangrijk: koppel eerst <strong>Doelen → Cloud &amp; AI</strong> (Supabase) en log in — zowel in Safari als
+            in de geïnstalleerde app. iOS geeft die twee namelijk aparte opslag; via de cloud-sync zie je Siri-loggings
+            (die via Safari binnenkomen) automatisch in de app zodra je hem opent.
+          </p>
+        </div>
+      </div>
+
+      <h2 className="sectie-kop">Stap 4 · Apple Health (automatisch)</h2>
       <div className="card">
         <div className="uitleg-stap">
           <p style={{ marginBottom: 8 }}>
@@ -78,8 +94,12 @@ export default function Guide() {
               <strong>Registreer gezondheidsmonster</strong> → type <em>Voedingsenergie</em> (kcal).</li>
             <li>Herhaal dat voor <code>eiwit</code> → <em>Eiwit</em> (g), <code>koolhydraten</code> → <em>Koolhydraten</em> (g)
               en <code>vet</code> → <em>Vet</em> (g).</li>
-            <li>Zet in de app bij <strong>Doelen</strong> de schakelaar “Doorzetten naar Health” aan.</li>
           </ol>
+          <p style={{ color: 'var(--ink-soft)', fontSize: 14 }}>
+            Vanaf dan gaat elke logging <strong>automatisch</strong> naar Apple Health — de app opent de opdracht direct
+            na het loggen, zonder knop (dit staat standaard aan; uitzetten kan bij <strong>Doelen</strong>). iOS staat
+            webapps geen rechtstreekse Health-toegang toe; deze opdracht is de officiële route.
+          </p>
         </div>
       </div>
 
@@ -87,9 +107,8 @@ export default function Guide() {
       <div className="card">
         <div className="uitleg-stap">
           <ul>
-            <li>Gebruik de app in <strong>Safari</strong> (zet een bladwijzer of een tweede opdracht “Open FoodTrack”).
-              Als je de app op je beginscherm installeert, gebruikt iOS daarvoor een aparte opslag en zie je
-              Siri-loggings daar niet terug.</li>
+            <li>Doet de microfoonknop in de chat niets? iOS beperkt spraakherkenning in webapps geregeld — gebruik dan
+              de <strong>dicteerknop (🎤) op je toetsenbord</strong>; die werkt altijd en typt direct in het chatveld.</li>
             <li>Zeg hoeveelheden gewoon zoals je praat: <em>“twee bitterkoekjes”</em>, <em>“een handje noten”</em>,{' '}
               <em>“200 gram kwark”</em>, <em>“een halve zak chips”</em>.</li>
             <li>Merkproducten werken ook: <em>“een snelle jelle”</em>, <em>“een flesje optimel”</em> — de app kent de

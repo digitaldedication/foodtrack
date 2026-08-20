@@ -1,16 +1,18 @@
 :root {
-  --bg: #f3f4ee;
-  --card: #ffffff;
-  --ink: #23281e;
+  --bg: #eff1e6;
+  --card: #fffefa;
+  --ink: #22281c;
   --ink-soft: #5c6353;
-  --line: #dde0d2;
-  --groen: #2e5a3c;
-  --groen-zacht: #e3ead9;
+  --line: #dde0d0;
+  --groen: #2c5a3b;
+  --groen-fel: #4d8b55;
+  --groen-zacht: #e2ead6;
   --eiwit: #b4552d;
   --koolh: #c08a1d;
   --vet: #6e7f3e;
   --danger: #a33b2e;
-  --radius: 18px;
+  --schaduw: 0 1px 2px rgba(34, 40, 28, 0.05), 0 4px 14px rgba(34, 40, 28, 0.06);
+  --radius: 20px;
   --font-display: 'Bricolage Grotesque', 'Avenir Next', system-ui, sans-serif;
   --font-body: 'Instrument Sans', -apple-system, system-ui, sans-serif;
   --font-spoken: 'Newsreader', Georgia, serif;
@@ -18,17 +20,19 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #171a14;
-    --card: #21251c;
+    --bg: #14170f;
+    --card: #1f241a;
     --ink: #edefe6;
     --ink-soft: #a4ab97;
-    --line: #343a2d;
+    --line: #333a2b;
     --groen: #8fb07a;
-    --groen-zacht: #2a3324;
+    --groen-fel: #a9cc90;
+    --groen-zacht: #29321f;
     --eiwit: #d97e52;
     --koolh: #d4a63d;
     --vet: #9aad62;
     --danger: #d46a5b;
+    --schaduw: 0 1px 2px rgba(0, 0, 0, 0.3), 0 4px 14px rgba(0, 0, 0, 0.25);
   }
 }
 
@@ -82,6 +86,265 @@ body {
   border-radius: var(--radius);
   padding: 18px;
   margin-bottom: 14px;
+  box-shadow: var(--schaduw);
+}
+
+.held-kaart {
+  position: relative;
+  overflow: hidden;
+}
+
+.held-kaart::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 5px;
+  background: linear-gradient(90deg, var(--eiwit), var(--koolh), var(--vet), var(--groen));
+  opacity: 0.85;
+}
+
+.begroeting {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 15px;
+  color: var(--ink-soft);
+  margin-bottom: 2px;
+}
+
+/* ---- actieknoppen (stem + chat) ---- */
+.actie-rij {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.actie-rij .knop {
+  box-shadow: var(--schaduw);
+}
+
+.knop.chat-knop {
+  background: var(--card);
+  color: var(--groen);
+  border: 1.5px solid var(--groen);
+}
+
+@media (prefers-color-scheme: dark) {
+  .knop.chat-knop {
+    color: var(--groen);
+  }
+}
+
+/* ---- weekstrip op Vandaag ---- */
+.week-strip {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  width: 100%;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--schaduw);
+  padding: 12px 14px 10px;
+  margin: 10px 0 4px;
+  cursor: pointer;
+}
+
+.week-dag {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.week-balk {
+  width: 100%;
+  max-width: 26px;
+  height: 44px;
+  border-radius: 7px;
+  background: var(--groen-zacht);
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.week-vulling {
+  width: 100%;
+  border-radius: 7px 7px 0 0;
+  transition: height 0.4s ease;
+}
+
+.week-letter {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  text-transform: lowercase;
+}
+
+.week-letter.nu {
+  color: var(--groen);
+}
+
+.week-meer {
+  align-self: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--groen);
+  white-space: nowrap;
+  padding-left: 4px;
+}
+
+/* ---- agenda ---- */
+.agenda-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.agenda-nav button {
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  font-size: 18px;
+  cursor: pointer;
+}
+
+.week-grafiek {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+}
+
+.week-kolom {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 2px;
+  border-radius: 10px;
+}
+
+.week-kolom.gekozen {
+  background: var(--groen-zacht);
+}
+
+.week-kolom .kcal-label {
+  font-size: 10px;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+  height: 13px;
+}
+
+.kolom-balk {
+  width: 100%;
+  max-width: 30px;
+  height: 90px;
+  border-radius: 8px;
+  background: var(--groen-zacht);
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+}
+
+.week-kolom.gekozen .kolom-balk {
+  background: var(--card);
+}
+
+.kolom-vulling {
+  width: 100%;
+  border-radius: 8px 8px 0 0;
+  transition: height 0.4s ease;
+}
+
+.week-samenvatting {
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  text-align: center;
+}
+
+.maand-koppen {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin-bottom: 6px;
+}
+
+.maand-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.maand-dag {
+  aspect-ratio: 1;
+  border: none;
+  background: none;
+  border-radius: 12px;
+  font-family: var(--font-body);
+  font-size: 14px;
+  color: var(--ink);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.maand-dag.nu {
+  font-weight: 700;
+  color: var(--groen);
+}
+
+.maand-dag.gekozen {
+  background: var(--groen);
+  color: #fff;
+}
+
+@media (prefers-color-scheme: dark) {
+  .maand-dag.gekozen {
+    color: #141810;
+  }
+}
+
+.maand-dag .stip {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+
+.maand-dag .stip.vol {
+  background: currentColor;
+  opacity: 0.7;
+}
+
+.dag-totaal {
+  font-size: 15px;
+  color: var(--ink-soft);
+}
+
+.dag-totaal .groot {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 34px;
+  color: var(--ink);
+  margin-right: 4px;
 }
 
 /* ---- kcal gauge ---- */
@@ -262,13 +525,18 @@ body {
   font-weight: 600;
   font-size: 16px;
   border: none;
-  border-radius: 14px;
-  padding: 14px 18px;
+  border-radius: 16px;
+  padding: 15px 18px;
   cursor: pointer;
   width: 100%;
-  background: var(--groen);
+  background: linear-gradient(135deg, var(--groen), var(--groen-fel));
   color: #fff;
   text-decoration: none;
+  transition: transform 0.1s ease;
+}
+
+.knop:active {
+  transform: scale(0.98);
 }
 
 @media (prefers-color-scheme: dark) {

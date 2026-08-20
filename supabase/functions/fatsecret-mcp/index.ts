@@ -102,6 +102,8 @@ interface LogItem {
   gram?: number
   aantal?: number
   maaltijd: string
+  /** Alleen true als de gebruiker expliciet akkoord is met een database-product. */
+  sta_database_toe?: boolean
 }
 
 // ---------- eigen producten (recent gegeten + favorieten) ----------
@@ -116,24 +118,39 @@ interface EigenProduct {
   food_name: string
   brand_name?: string
   food_url?: string
+  /** De portie die de gebruiker zelf bij dit product heeft ingesteld. */
   number_of_units?: string
+  favoriet?: boolean
 }
 
-async function eigenProducten(): Promise<EigenProduct[]> {
-  const uniek = new Map<string, EigenProduct>()
-  for (const methode of ['foods.get_favorites', 'foods.get_recently_eaten']) {
-    try {
-      const data = await fatsecret({ method: methode })
-      const raw = (data as { foods?: { food?: unknown } }).foods?.food
-      const lijst = (Array.isArray(raw) ? raw : raw ? [raw] : []) as EigenProduct[]
-      for (const f of lijst) {
-        if (f.food_id && f.serving_id && !uniek.has(f.food_id)) uniek.set(f.food_id, f)
-      }
-    } catch {
-      // endpoint niet beschikbaar — geen probleem
-    }
+interface Catalogus {
+  favorieten: EigenProduct[]
+  recent: EigenProduct[]
+}
+
+async function haalLijst(methode: string): Promise<EigenProduct[]> {
+  try {
+    const data = await fatsecret({ method: methode })
+    const raw = (data as { foods?: { food?: unknown } }).foods?.food
+    const lijst = (Array.isArray(raw) ? raw : raw ? [raw] : []) as EigenProduct[]
+    return lijst.filter((f) => f.food_id && f.serving_id)
+  } catch {
+    return []
   }
-  return [...uniek.values()]
+}
+
+/**
+ * Favorieten zijn de betrouwbare bron: die heeft de gebruiker zelf gekozen,
+ * met de juiste portie. "Recent gegeten" is afgeleid van het dagboek en kan
+ * dus ook eerdere misgrepen bevatten — daarom een aparte, lagere laag.
+ */
+async function eigenProducten(): Promise<Catalogus> {
+  const [fav, rec] = await Promise.all([haalLijst('foods.get_favorites'), haalLijst('foods.get_recently_eaten')])
+  const favIds = new Set(fav.map((f) => f.food_id))
+  return {
+    favorieten: fav.map((f) => ({ ...f, favoriet: true })),
+    recent: rec.filter((f) => !favIds.has(f.food_id))
+  }
 }
 
 function normTokens(s: string): string[] {
@@ -186,16 +203,23 @@ async function entryKcal(entryId: string, datumDagen: number): Promise<number | 
   }
 }
 
-async function logItem(item: LogItem, datumDagen: number, catalogus: EigenProduct[]): Promise<string> {
-  // Laag 1: eigen producten (NL-merken die de gebruiker al gebruikt)
-  const eigen = matchEigen(catalogus, item.zoekterm)
+async function logItem(item: LogItem, datumDagen: number, catalogus: Catalogus): Promise<string> {
+  // Laag 1: favorieten (door de gebruiker zelf ingesteld, mét juiste portie),
+  // pas daarna de recent-gegeten lijst.
+  const eigen = matchEigen(catalogus.favorieten, item.zoekterm) ?? matchEigen(catalogus.recent, item.zoekterm)
   if (eigen) {
-    // Zonder food.get (regio-vergrendeld) rekenen we grammen alleen om als
-    // het product per 100 g geregistreerd staat (url eindigt op /100g).
-    let units = item.aantal ?? 1
+    // De opgeslagen portie van de gebruiker is de standaard — die wordt nooit
+    // "opnieuw verzonnen". Alleen een expliciet aantal of gewicht wijkt af.
+    const eigenPortie = Number(eigen.number_of_units)
+    const basis = Number.isFinite(eigenPortie) && eigenPortie > 0 ? eigenPortie : 1
+    let units = basis * (item.aantal ?? 1)
+    let portieUitleg = item.aantal && item.aantal !== 1 ? `${item.aantal} × jouw portie` : 'jouw ingestelde portie'
     if (item.gram && item.gram > 0 && (eigen.food_url ?? '').endsWith('/100g')) {
-      units = Math.round((item.gram / 100) * 100) / 100
+      units = item.gram / 100
+      portieUitleg = `${item.gram} g`
     }
+    units = Math.round(units * 1000) / 1000
+
     const naam = eigen.brand_name ? `${eigen.brand_name} ${eigen.food_name}` : eigen.food_name
     const made = await fatsecret({
       method: 'food_entry.create',
@@ -208,10 +232,32 @@ async function logItem(item: LogItem, datumDagen: number, catalogus: EigenProduc
     })
     const entryId = ((made as { food_entry_id?: { value?: string } }).food_entry_id ?? {}).value
     const kcal = entryId ? await entryKcal(entryId, datumDagen) : null
-    return `${naam} (eigen product): ${units} eenheid/eenheden${kcal !== null ? ` ≈ ${kcal} kcal` : ''}`
+    const bron = eigen.favoriet ? 'favoriet' : 'recent gegeten'
+    return `${naam} — ${portieUitleg}${kcal !== null ? ` = ${kcal} kcal` : ''} [${bron}]`
   }
 
-  // Laag 2: wereldwijde database
+  // Geen eigen product: NIET blind iets uit de Engelstalige database loggen.
+  // Eerst terugmelden, zodat de gebruiker kan kiezen of bevestigen.
+  if (!item.sta_database_toe) {
+    const suggesties = await zoekEten(item.zoekterm)
+    const opties = suggesties
+      .slice(0, 3)
+      .map((f) => {
+        const x = f as { food_name: string; brand_name?: string }
+        return `${x.brand_name ? `${x.brand_name} ` : ''}${x.food_name}`
+      })
+      .join('; ')
+    return (
+      `"${item.zoekterm}": NIET gelogd — staat niet bij je eigen producten. ` +
+      (opties
+        ? `Uit de (Engelstalige) database zou dit passen: ${opties}. Vraag de gebruiker of dat klopt, en log ` +
+          `dan opnieuw met sta_database_toe=true. `
+        : 'Ook niets gevonden in de database. ') +
+      'Beter: laat de gebruiker dit product één keer in de FatSecret-app loggen en op favoriet zetten.'
+    )
+  }
+
+  // Laag 2: wereldwijde database (alleen na expliciete toestemming)
   const kandidaten = await zoekEten(item.zoekterm)
   if (kandidaten.length === 0) return `"${item.zoekterm}": niets gevonden in FatSecret`
 
@@ -255,14 +301,15 @@ const TOOLS = [
   {
     name: 'log_eten',
     description:
-      'Schrijf een of meer gegeten producten in het FatSecret-dagboek van de gebruiker. ' +
-      'Splits een maaltijd in losse producten. Er wordt EERST gezocht in de eigen producten van de ' +
-      'gebruiker (favorieten + recent gegeten, incl. Nederlandse merken als AH en Zuivelhoeve) — gebruik ' +
-      'daarvoor de naam zoals de gebruiker hem zegt ("AH eiwitrijk flatbread"). Alleen als dat niets ' +
-      'oplevert wordt de wereldwijde (Engelstalige) database doorzocht: vertaal dan naar Engels ' +
-      '("hagelslag" → "chocolate sprinkles"). Raadpleeg bij twijfel eerst mijn_producten of zoek_product. ' +
-      'Laat vulwoorden ("normaal", "gewoon", "lekker") weg uit de zoekterm. ' +
-      'Geef gram op als de gebruiker een hoeveelheid noemt, anders aantal porties (standaard 1).',
+      'Schrijf gegeten producten in het FatSecret-dagboek. Splits een maaltijd in losse producten en ' +
+      'gebruik als zoekterm de naam zoals de gebruiker hem zegt, in het Nederlands ("AH eiwitrijk ' +
+      'flatbread", "zuivelhoeve yoghurt") — laat vulwoorden weg. ' +
+      'PORTIES: laat "aantal" leeg tenzij de gebruiker een aantal noemt; de eigen standaardportie van de ' +
+      'gebruiker wordt dan automatisch gebruikt. Verzin NOOIT zelf grammen — geef "gram" alleen door als ' +
+      'de gebruiker dat letterlijk zegt. ' +
+      'Producten die niet bij de eigen producten van de gebruiker staan worden NIET gelogd; je krijgt dan ' +
+      'suggesties terug. Leg die aan de gebruiker voor en log pas opnieuw met sta_database_toe=true als ' +
+      'die akkoord is (die producten komen uit een Engelstalige database en kunnen afwijken).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -271,10 +318,14 @@ const TOOLS = [
           items: {
             type: 'object',
             properties: {
-              zoekterm: { type: 'string', description: 'productnaam om op te zoeken' },
-              gram: { type: 'number', description: 'gewicht in grammen (optioneel)' },
-              aantal: { type: 'number', description: 'aantal porties/stuks (standaard 1)' },
-              maaltijd: { type: 'string', enum: ['ontbijt', 'lunch', 'diner', 'snack'] }
+              zoekterm: { type: 'string', description: 'productnaam zoals de gebruiker hem noemt (Nederlands)' },
+              gram: { type: 'number', description: 'ALLEEN als de gebruiker zelf grammen noemt' },
+              aantal: { type: 'number', description: 'aantal keer de eigen standaardportie; weglaten = 1' },
+              maaltijd: { type: 'string', enum: ['ontbijt', 'lunch', 'diner', 'snack'] },
+              sta_database_toe: {
+                type: 'boolean',
+                description: 'alleen true na expliciet akkoord van de gebruiker op een database-suggestie'
+              }
             },
             required: ['zoekterm', 'maaltijd']
           }
@@ -304,8 +355,8 @@ const TOOLS = [
   {
     name: 'mijn_producten',
     description:
-      'Toon de eigen producten van de gebruiker (favorieten + recent gegeten in FatSecret, incl. ' +
-      'Nederlandse merken). Handig om te zien welke producten direct logbaar zijn.',
+      'Toon de eigen producten van de gebruiker met hun ingestelde standaardporties: eerst de favorieten ' +
+      '(betrouwbaar), daarna recent gegeten. Raadpleeg dit bij twijfel over welk product bedoeld wordt.',
     inputSchema: { type: 'object', properties: {} }
   },
   {
@@ -336,11 +387,19 @@ async function runTool(name: string, args: Record<string, unknown>): Promise<str
   }
 
   if (name === 'mijn_producten') {
-    const lijst = await eigenProducten()
-    if (lijst.length === 0) return 'Nog geen eigen producten (favorieten of recent gegeten) gevonden.'
-    return lijst
-      .map((p) => `• ${p.brand_name ? `${p.brand_name} ` : ''}${p.food_name}${(p.food_url ?? '').endsWith('/100g') ? ' (per 100 g)' : ''}`)
-      .join('\n')
+    const { favorieten, recent } = await eigenProducten()
+    if (favorieten.length === 0 && recent.length === 0) return 'Nog geen eigen producten gevonden.'
+    const toon = (p: EigenProduct) => {
+      const portie = Number(p.number_of_units)
+      const per100 = (p.food_url ?? '').endsWith('/100g')
+      const eenheid = Number.isFinite(portie) && portie > 0 ? (per100 ? `${Math.round(portie * 100)} g` : `${portie} portie(s)`) : 'onbekend'
+      return `• ${p.brand_name ? `${p.brand_name} ` : ''}${p.food_name} — standaardportie: ${eenheid}`
+    }
+    const delen = [`FAVORIETEN (betrouwbaar, met jouw eigen porties):\n${favorieten.map(toon).join('\n')}`]
+    if (recent.length > 0) {
+      delen.push(`\nRECENT GEGETEN (kan onjuiste eerdere keuzes bevatten):\n${recent.map(toon).join('\n')}`)
+    }
+    return delen.join('\n')
   }
 
   if (name === 'dag_overzicht') {

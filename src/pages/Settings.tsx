@@ -151,6 +151,18 @@ export default function SettingsPage() {
         )}
       </div>
 
+      <div className="card">
+        <div className="schakel-rij">
+          <div className="tekst">
+            <div className="titel">Hulp &amp; installatie</div>
+            <div className="uitleg">Siri-shortcuts, Apple Health, app op je beginscherm en tips.</div>
+          </div>
+          <Link to="/uitleg" className="knop klein secundair">
+            Open uitleg
+          </Link>
+        </div>
+      </div>
+
       <CloudSection />
 
       <h2 className="sectie-kop">Producten</h2>

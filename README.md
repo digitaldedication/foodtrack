@@ -102,6 +102,30 @@ Standaardmodel is `claude-opus-5`; zuiniger kan met
 `supabase secrets set CLAUDE_MODEL=claude-haiku-4-5`. Valt de functie uit of
 ben je offline, dan neemt de lokale parser het naadloos over.
 
+## FatSecret loggen via de Claude-app (optioneel, subscription-only)
+
+Met de connector `supabase/functions/fatsecret-mcp` log je eten door gewoon
+tegen de **Claude-app** te praten; Claude schrijft het via de FatSecret-API in
+je FatSecret-dagboek (en FatSecret synct met Apple Health). Kost niets extra:
+Claude draait op je abonnement, FatSecret is gratis (Basic API: 5.000
+calls/dag).
+
+1. Vraag een gratis developer-key aan op
+   [platform.fatsecret.com](https://platform.fatsecret.com). Voor
+   dagboek-schrijven heb je de **OAuth 1.0 Consumer Key + Shared Secret**
+   nodig (de OAuth 2.0 Client ID/Secret is niet genoeg).
+2. Doorloop eenmalig de OAuth 1.0-koppeling met je FatSecret-account
+   (request token → autoriseren op fatsecret.com → PIN → access token).
+3. Deploy de functie (dashboard-editor of CLI) met **JWT-verificatie uit** en
+   zet de secrets: `FATSECRET_CONSUMER_KEY`, `FATSECRET_CONSUMER_SECRET`,
+   `FATSECRET_ACCESS_TOKEN`, `FATSECRET_ACCESS_SECRET` en een zelfgekozen
+   lange `MCP_KEY`.
+4. Voeg in de Claude-app een custom connector toe met URL:
+   `https://<ref>.functions.supabase.co/fatsecret-mcp?key=<MCP_KEY>`
+
+Tools voor Claude: `log_eten`, `dag_overzicht`, `verwijder_entry`,
+`zoek_product`.
+
 ## Ontwikkelen
 
 ```bash

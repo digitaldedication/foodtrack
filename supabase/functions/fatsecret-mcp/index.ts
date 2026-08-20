@@ -148,15 +148,27 @@ function normTokens(s: string): string[] {
 function matchEigen(producten: EigenProduct[], zoekterm: string): EigenProduct | null {
   const query = normTokens(zoekterm)
   if (query.length === 0) return null
-  let best: { p: EigenProduct; score: number } | null = null
+  let best: { p: EigenProduct; score: number; size: number } | null = null
   for (const p of producten) {
     const doel = normTokens(`${p.food_name} ${p.brand_name ?? ''}`)
     let geraakt = 0
+    let score = 0
     for (const q of query) {
-      if (doel.some((d) => d === q || (q.length >= 4 && d.startsWith(q)) || (d.length >= 4 && q.startsWith(d)))) geraakt++
+      // Exacte woordmatch weegt zwaarder dan een gedeeltelijke ("chocomel"
+      // moet Chocomel verslaan, niet blijven hangen op "choco…" in een reep).
+      if (doel.includes(q)) {
+        geraakt++
+        score += 2
+      } else if (doel.some((d) => (q.length >= 4 && d.startsWith(q)) || (d.length >= 4 && q.startsWith(d)))) {
+        geraakt++
+        score += 1
+      }
     }
-    const nodig = query.length <= 2 ? query.length : Math.ceil(query.length * 0.7)
-    if (geraakt >= nodig && (!best || geraakt > best.score)) best = { p, score: geraakt }
+    const nodig = query.length <= 2 ? query.length : Math.ceil(query.length * 0.6)
+    if (geraakt < nodig) continue
+    if (!best || score > best.score || (score === best.score && doel.length < best.size)) {
+      best = { p, score, size: doel.length }
+    }
   }
   return best?.p ?? null
 }
@@ -249,6 +261,7 @@ const TOOLS = [
       'daarvoor de naam zoals de gebruiker hem zegt ("AH eiwitrijk flatbread"). Alleen als dat niets ' +
       'oplevert wordt de wereldwijde (Engelstalige) database doorzocht: vertaal dan naar Engels ' +
       '("hagelslag" → "chocolate sprinkles"). Raadpleeg bij twijfel eerst mijn_producten of zoek_product. ' +
+      'Laat vulwoorden ("normaal", "gewoon", "lekker") weg uit de zoekterm. ' +
       'Geef gram op als de gebruiker een hoeveelheid noemt, anders aantal porties (standaard 1).',
     inputSchema: {
       type: 'object',

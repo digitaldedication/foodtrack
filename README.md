@@ -61,6 +61,47 @@ Open de app en volg het tabblad **Uitleg** — daar staat het stappenplan voor:
   *"Hey Siri, eten loggen"*, de actieknop of dubbeltik op de achterkant;
 - de opdracht **"FoodTrack Health"** die kcal en macro's in Apple Health zet.
 
+## Cloud & AI met Supabase (optioneel)
+
+Zonder configuratie blijft alles lokaal op je telefoon. Met een (gratis)
+Supabase-project krijg je: **sync over apparaten, back-up van je loggings, en
+echte Claude-AI in de chat** met je API-key veilig server-side.
+
+### Stap 1 · Supabase-project
+
+1. Maak een project op [supabase.com](https://supabase.com) (gratis tier volstaat).
+2. Voer `supabase/schema.sql` uit in de **SQL Editor** (tabellen + row level security).
+3. Zet in **Authentication → URL Configuration** je app-URL
+   (`https://<gebruiker>.github.io/foodtrack/`) als *Site URL* en bij
+   *Redirect URLs*.
+4. Open in de app **Doelen → Cloud & AI**, vul de *Project URL* en *anon key*
+   in (Settings → API in Supabase) en log in via de magic link.
+
+Daarna synchroniseert de app automatisch: loggings, eigen producten en
+instellingen. Offline wijzigingen komen in een wachtrij en worden verstuurd
+zodra je weer online bent; per logging wint de server bij conflicten.
+
+### Stap 2 · Claude AI in de chat
+
+1. Maak een API-key aan op [console.anthropic.com](https://console.anthropic.com).
+2. Installeer de [Supabase CLI](https://supabase.com/docs/guides/cli) en deploy
+   de Edge Function:
+
+   ```bash
+   supabase link --project-ref <jouw-project-ref>
+   supabase secrets set ANTHROPIC_API_KEY=sk-ant-...
+   supabase functions deploy claude
+   ```
+
+3. Zet in de app **Doelen → Cloud & AI → "Claude AI in de chat"** aan.
+
+De chat stuurt dan je bericht + dagcontext naar de Edge Function; Claude
+parst maaltijden (incl. tijdstip), beantwoordt vrije vragen en de app logt het
+resultaat. De API-key staat alleen in Supabase-secrets, nooit in de browser.
+Standaardmodel is `claude-opus-5`; zuiniger kan met
+`supabase secrets set CLAUDE_MODEL=claude-haiku-4-5`. Valt de functie uit of
+ben je offline, dan neemt de lokale parser het naadloos over.
+
 ## Ontwikkelen
 
 ```bash

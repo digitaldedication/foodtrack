@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Route, Routes } from 'react-router-dom'
+import { initCloud } from './lib/cloud'
 import { loadFoodIndex } from './lib/db'
 import type { FoodIndex } from './lib/parser'
 import Today from './pages/Today'
@@ -23,6 +24,7 @@ export default function App() {
 
   useEffect(() => {
     loadFoodIndex().then(setIndex)
+    void initCloud()
   }, [])
 
   return (

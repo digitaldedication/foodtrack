@@ -107,6 +107,8 @@ export default function Guide() {
             <li>Broncode en installatie-instructies: <code>github.com/{REPO}</code></li>
             <li>De Claude-koppeling voor onbekende producten draait via GitHub Actions met je Claude-abonnement — zie de
               README (<code>claude setup-token</code>).</li>
+            <li>Sync over apparaten + echte Claude-AI in de chat: koppel een gratis Supabase-project via{' '}
+              <strong>Doelen → Cloud &amp; AI</strong> — installatiestappen staan in de README.</li>
           </ul>
         </div>
       </div>

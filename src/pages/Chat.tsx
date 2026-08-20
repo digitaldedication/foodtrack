@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
+import { chatWithClaude } from '../lib/ai'
 import { handleChatMessage } from '../lib/chat'
 import { healthShortcutUrl, isIos } from '../lib/health'
 import { useLog, useSettings } from '../lib/store'
@@ -53,12 +54,23 @@ export default function Chat() {
   const send = async (raw: string) => {
     const trimmed = raw.trim()
     if (!trimmed || busy) return
+    const history = sessionMessages
+      .filter((m) => !m.entry || m.who === 'ik')
+      .slice(-10)
+      .map((m) => ({ role: m.who === 'ik' ? ('user' as const) : ('assistant' as const), content: m.text }))
     setText('')
     push({ who: 'ik', text: trimmed })
     setBusy(true)
     try {
-      const result = await handleChatMessage(trimmed, logRef.current)
-      push({ who: 'app', text: result.reply, entry: result.entry, unresolved: result.unresolvedNames })
+      // Met cloud + Claude actief gaat het gesprek naar de Edge Function;
+      // anders (of bij een fout) handelt de lokale parser het af.
+      const ai = await chatWithClaude(history, trimmed, logRef.current)
+      if (ai) {
+        push({ who: 'app', text: ai.reply, entry: ai.entry })
+      } else {
+        const result = await handleChatMessage(trimmed, logRef.current)
+        push({ who: 'app', text: result.reply, entry: result.entry, unresolved: result.unresolvedNames })
+      }
     } finally {
       setBusy(false)
     }

@@ -9,6 +9,36 @@ const LEARNED_KEY = 'foodtrack.learned.v1'
 type Listener = () => void
 const listeners = new Set<Listener>()
 
+/** Mutaties worden doorgegeven aan de cloud-sync (indien geconfigureerd). */
+export type MutationOp =
+  | { kind: 'entry-upsert'; entry: LogEntry }
+  | { kind: 'entry-delete'; id: string }
+  | { kind: 'settings'; settings: Settings }
+  | { kind: 'food-upsert'; food: Food }
+  | { kind: 'food-delete'; id: string }
+
+type MutationHandler = (op: MutationOp) => void
+let mutationHandler: MutationHandler | null = null
+let suspendDepth = 0
+
+export function setMutationHandler(h: MutationHandler | null) {
+  mutationHandler = h
+}
+
+/** Wijzigingen toepassen zonder ze terug de cloud in te sturen (bij pull). */
+export function withSyncSuspended(fn: () => void) {
+  suspendDepth++
+  try {
+    fn()
+  } finally {
+    suspendDepth--
+  }
+}
+
+function notifyMutation(op: MutationOp) {
+  if (suspendDepth === 0) mutationHandler?.(op)
+}
+
 let logCache: LogEntry[] | null = null
 let settingsCache: Settings | null = null
 
@@ -47,18 +77,27 @@ export function saveSettings(next: Settings) {
   settingsCache = next
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(next))
   emit()
+  notifyMutation({ kind: 'settings', settings: next })
 }
 
 export function addEntry(entry: LogEntry) {
   writeLog([...readLog(), entry])
+  notifyMutation({ kind: 'entry-upsert', entry })
 }
 
 export function removeEntry(id: string) {
   writeLog(readLog().filter((e) => e.id !== id))
+  notifyMutation({ kind: 'entry-delete', id })
 }
 
 export function updateEntry(updated: LogEntry) {
   writeLog(readLog().map((e) => (e.id === updated.id ? updated : e)))
+  notifyMutation({ kind: 'entry-upsert', entry: updated })
+}
+
+/** Volledige log vervangen (na een cloud-merge). */
+export function replaceLog(entries: LogEntry[]) {
+  writeLog([...entries])
 }
 
 export function getEntry(id: string): LogEntry | undefined {
@@ -83,11 +122,13 @@ export function saveLearnedFood(food: Food) {
   const all = getLearnedFoods().filter((f) => f.id !== food.id)
   localStorage.setItem(LEARNED_KEY, JSON.stringify([...all, food]))
   emit()
+  notifyMutation({ kind: 'food-upsert', food })
 }
 
 export function deleteLearnedFood(foodId: string) {
   localStorage.setItem(LEARNED_KEY, JSON.stringify(getLearnedFoods().filter((f) => f.id !== foodId)))
   emit()
+  notifyMutation({ kind: 'food-delete', id: foodId })
 }
 
 export function useLearnedFoods(): Food[] {

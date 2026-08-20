@@ -104,7 +104,102 @@ interface LogItem {
   maaltijd: string
 }
 
-async function logItem(item: LogItem, datumDagen: number): Promise<string> {
+// ---------- eigen producten (recent gegeten + favorieten) ----------
+// De gratis API-editie zoekt alleen in de wereldwijde database, maar de
+// producten die de gebruiker zelf in de FatSecret-app gebruikt (incl. NL-
+// merken als AH en Zuivelhoeve) zijn wél bereikbaar via deze user-scoped
+// endpoints — inclusief food_id + serving_id om direct mee te loggen.
+
+interface EigenProduct {
+  food_id: string
+  serving_id: string
+  food_name: string
+  brand_name?: string
+  food_url?: string
+  number_of_units?: string
+}
+
+async function eigenProducten(): Promise<EigenProduct[]> {
+  const uniek = new Map<string, EigenProduct>()
+  for (const methode of ['foods.get_favorites', 'foods.get_recently_eaten']) {
+    try {
+      const data = await fatsecret({ method: methode })
+      const raw = (data as { foods?: { food?: unknown } }).foods?.food
+      const lijst = (Array.isArray(raw) ? raw : raw ? [raw] : []) as EigenProduct[]
+      for (const f of lijst) {
+        if (f.food_id && f.serving_id && !uniek.has(f.food_id)) uniek.set(f.food_id, f)
+      }
+    } catch {
+      // endpoint niet beschikbaar — geen probleem
+    }
+  }
+  return [...uniek.values()]
+}
+
+function normTokens(s: string): string[] {
+  return s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .split(/[^a-z0-9]+/)
+    .filter((w) => w.length > 1)
+}
+
+function matchEigen(producten: EigenProduct[], zoekterm: string): EigenProduct | null {
+  const query = normTokens(zoekterm)
+  if (query.length === 0) return null
+  let best: { p: EigenProduct; score: number } | null = null
+  for (const p of producten) {
+    const doel = normTokens(`${p.food_name} ${p.brand_name ?? ''}`)
+    let geraakt = 0
+    for (const q of query) {
+      if (doel.some((d) => d === q || (q.length >= 4 && d.startsWith(q)) || (d.length >= 4 && q.startsWith(d)))) geraakt++
+    }
+    const nodig = query.length <= 2 ? query.length : Math.ceil(query.length * 0.7)
+    if (geraakt >= nodig && (!best || geraakt > best.score)) best = { p, score: geraakt }
+  }
+  return best?.p ?? null
+}
+
+/** Zoek de kcal van een zojuist aangemaakte entry op (voor de bevestiging). */
+async function entryKcal(entryId: string, datumDagen: number): Promise<number | null> {
+  try {
+    const data = await fatsecret({ method: 'food_entries.get.v2', date: String(datumDagen) })
+    const raw = (data as { food_entries?: { food_entry?: unknown } }).food_entries?.food_entry
+    const entries = (Array.isArray(raw) ? raw : raw ? [raw] : []) as Array<Record<string, string>>
+    const eigen = entries.find((e) => e.food_entry_id === entryId)
+    return eigen ? Math.round(Number(eigen.calories)) : null
+  } catch {
+    return null
+  }
+}
+
+async function logItem(item: LogItem, datumDagen: number, catalogus: EigenProduct[]): Promise<string> {
+  // Laag 1: eigen producten (NL-merken die de gebruiker al gebruikt)
+  const eigen = matchEigen(catalogus, item.zoekterm)
+  if (eigen) {
+    // Zonder food.get (regio-vergrendeld) rekenen we grammen alleen om als
+    // het product per 100 g geregistreerd staat (url eindigt op /100g).
+    let units = item.aantal ?? 1
+    if (item.gram && item.gram > 0 && (eigen.food_url ?? '').endsWith('/100g')) {
+      units = Math.round((item.gram / 100) * 100) / 100
+    }
+    const naam = eigen.brand_name ? `${eigen.brand_name} ${eigen.food_name}` : eigen.food_name
+    const made = await fatsecret({
+      method: 'food_entry.create',
+      food_id: eigen.food_id,
+      food_entry_name: naam.slice(0, 120),
+      serving_id: eigen.serving_id,
+      number_of_units: String(units),
+      meal: MAALTIJD[item.maaltijd] ?? 'other',
+      date: String(datumDagen)
+    })
+    const entryId = ((made as { food_entry_id?: { value?: string } }).food_entry_id ?? {}).value
+    const kcal = entryId ? await entryKcal(entryId, datumDagen) : null
+    return `${naam} (eigen product): ${units} eenheid/eenheden${kcal !== null ? ` ≈ ${kcal} kcal` : ''}`
+  }
+
+  // Laag 2: wereldwijde database
   const kandidaten = await zoekEten(item.zoekterm)
   if (kandidaten.length === 0) return `"${item.zoekterm}": niets gevonden in FatSecret`
 
@@ -149,11 +244,12 @@ const TOOLS = [
     name: 'log_eten',
     description:
       'Schrijf een of meer gegeten producten in het FatSecret-dagboek van de gebruiker. ' +
-      'Splits een maaltijd in losse producten. BELANGRIJK: de database is Engelstalig — vertaal Nederlandse ' +
-      'producten naar Engelse zoektermen ("hagelslag" → "chocolate sprinkles", "boterham volkoren" → ' +
-      '"whole wheat bread", "kwark" → "quark"); merknamen onvertaald laten ("stroopwafel" en merken als ' +
-      '"Daelmans" werken wel). Controleer bij twijfel eerst met zoek_product. ' +
-      'Geef gram op als de gebruiker een hoeveelheid noemt, anders aantal (standaard 1).',
+      'Splits een maaltijd in losse producten. Er wordt EERST gezocht in de eigen producten van de ' +
+      'gebruiker (favorieten + recent gegeten, incl. Nederlandse merken als AH en Zuivelhoeve) — gebruik ' +
+      'daarvoor de naam zoals de gebruiker hem zegt ("AH eiwitrijk flatbread"). Alleen als dat niets ' +
+      'oplevert wordt de wereldwijde (Engelstalige) database doorzocht: vertaal dan naar Engels ' +
+      '("hagelslag" → "chocolate sprinkles"). Raadpleeg bij twijfel eerst mijn_producten of zoek_product. ' +
+      'Geef gram op als de gebruiker een hoeveelheid noemt, anders aantal porties (standaard 1).',
     inputSchema: {
       type: 'object',
       properties: {
@@ -193,6 +289,13 @@ const TOOLS = [
     }
   },
   {
+    name: 'mijn_producten',
+    description:
+      'Toon de eigen producten van de gebruiker (favorieten + recent gegeten in FatSecret, incl. ' +
+      'Nederlandse merken). Handig om te zien welke producten direct logbaar zijn.',
+    inputSchema: { type: 'object', properties: {} }
+  },
+  {
     name: 'zoek_product',
     description: 'Zoek producten in de FatSecret-database zonder te loggen (om een match te controleren).',
     inputSchema: {
@@ -207,15 +310,24 @@ async function runTool(name: string, args: Record<string, unknown>): Promise<str
   if (name === 'log_eten') {
     const items = (args.items ?? []) as LogItem[]
     const d = dagen(args.datum as string | undefined)
+    const catalogus = await eigenProducten()
     const resultaten: string[] = []
     for (const item of items) {
       try {
-        resultaten.push(await logItem(item, d))
+        resultaten.push(await logItem(item, d, catalogus))
       } catch (err) {
         resultaten.push(`"${item.zoekterm}": mislukt — ${String(err)}`)
       }
     }
     return `Gelogd in FatSecret:\n${resultaten.map((r) => `• ${r}`).join('\n')}`
+  }
+
+  if (name === 'mijn_producten') {
+    const lijst = await eigenProducten()
+    if (lijst.length === 0) return 'Nog geen eigen producten (favorieten of recent gegeten) gevonden.'
+    return lijst
+      .map((p) => `• ${p.brand_name ? `${p.brand_name} ` : ''}${p.food_name}${(p.food_url ?? '').endsWith('/100g') ? ' (per 100 g)' : ''}`)
+      .join('\n')
   }
 
   if (name === 'dag_overzicht') {

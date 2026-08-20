@@ -448,6 +448,108 @@ function rpcError(id: unknown, code: number, message: string): Response {
   })
 }
 
+
+// ---------- Snel loggen via Siri (GET ?tekst=...) ----------
+// Een Opdracht op de iPhone dicteert een zin en stuurt die hierheen. De zin
+// wordt tegen de eigen producten gematcht en direct gelogd — zonder AI, dus
+// altijd hetzelfde resultaat en met de porties van de gebruiker.
+
+const TELWOORDEN: Record<string, number> = {
+  een: 1, één: 1, eentje: 1, twee: 2, drie: 3, vier: 4, vijf: 5, zes: 6,
+  zeven: 7, acht: 8, negen: 9, tien: 10, half: 0.5, halve: 0.5, anderhalf: 1.5,
+  anderhalve: 1.5, kwart: 0.25, paar: 2
+}
+
+const VULWOORDEN = new Set([
+  'ik', 'heb', 'net', 'zojuist', 'gegeten', 'gedronken', 'gehad', 'genomen',
+  'op', 'een', 'nog', 'ook', 'wat', 'van', 'de', 'het', 'mijn', 'normaal',
+  'normale', 'gewoon', 'gewone', 'lekker', 'lekkere', 'stuks', 'stuk', 'x',
+  'keer', 'portie', 'porties', 'vandaag', 'vanmorgen', 'vanmiddag', 'vanavond'
+])
+
+/** Bepaalt de maaltijd op basis van het huidige tijdstip in Nederland. */
+function huidigeMaaltijd(): string {
+  const uurTekst = new Intl.DateTimeFormat('nl-NL', {
+    timeZone: 'Europe/Amsterdam',
+    hour: 'numeric',
+    hour12: false
+  }).format(new Date())
+  const uur = Number(uurTekst)
+  if (uur < 11) return 'ontbijt'
+  if (uur < 15) return 'lunch'
+  if (uur >= 17 && uur < 22) return 'diner'
+  return 'snack'
+}
+
+function parseZin(tekst: string): LogItem[] {
+  const maaltijd = huidigeMaaltijd()
+  const segmenten = tekst
+    .toLowerCase()
+    .split(/,| en | plus |\+/)
+    .map((x) => x.trim())
+    .filter(Boolean)
+
+  const items: LogItem[] = []
+  for (const seg of segmenten) {
+    let aantal: number | undefined
+    let gram: number | undefined
+    const woorden: string[] = []
+
+    for (const woord of seg.split(/\s+/)) {
+      const gewicht = woord.match(/^(\d+(?:[.,]\d+)?)\s*(g|gr|gram|ml)$/)
+      if (gewicht) {
+        gram = parseFloat(gewicht[1].replace(',', '.'))
+        continue
+      }
+      const getal = woord.match(/^(\d+(?:[.,]\d+)?)x?$/)
+      if (getal) {
+        aantal = parseFloat(getal[1].replace(',', '.'))
+        continue
+      }
+      const kaal = woord.replace(/[^a-zà-ÿ0-9]/g, '')
+      if (kaal in TELWOORDEN) {
+        // "een" telt alleen als aantal wanneer er nog geen aantal staat.
+        if (aantal === undefined) aantal = TELWOORDEN[kaal]
+        continue
+      }
+      if (!VULWOORDEN.has(kaal) && kaal.length > 1) woorden.push(kaal)
+    }
+
+    const zoekterm = woorden.join(' ')
+    if (zoekterm) items.push({ zoekterm, aantal, gram, maaltijd })
+  }
+  return items
+}
+
+async function snelLoggen(tekst: string): Promise<string> {
+  const items = parseZin(tekst)
+  if (items.length === 0) return 'Niets herkend om te loggen.'
+  const catalogus = await eigenProducten()
+  const d = dagen()
+  const regels: string[] = []
+  for (const item of items) {
+    try {
+      regels.push(await logItem(item, d, catalogus))
+    } catch (err) {
+      regels.push(`"${item.zoekterm}": mislukt — ${String(err)}`)
+    }
+  }
+  const totaal = await dagTotaal(d)
+  return `${regels.join('\n')}${totaal !== null ? `\n\nVandaag totaal: ${totaal} kcal` : ''}`
+}
+
+/** Calorietotaal van een dag (voor de bevestiging in de Opdracht). */
+async function dagTotaal(datumDagen: number): Promise<number | null> {
+  try {
+    const data = await fatsecret({ method: 'food_entries.get.v2', date: String(datumDagen) })
+    const raw = (data as { food_entries?: { food_entry?: unknown } }).food_entries?.food_entry
+    const entries = (Array.isArray(raw) ? raw : raw ? [raw] : []) as Array<Record<string, string>>
+    return Math.round(entries.reduce((s, e) => s + (Number(e.calories) || 0), 0))
+  } catch {
+    return null
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
@@ -459,6 +561,19 @@ Deno.serve(async (req) => {
   }
 
   if (req.method === 'GET') {
+    // Snel loggen vanuit een iPhone-opdracht: ?tekst=twee%20flatbread
+    const tekst = url.searchParams.get('tekst')
+    if (tekst) {
+      try {
+        const antwoord = await snelLoggen(tekst)
+        return new Response(antwoord, { headers: { ...CORS, 'Content-Type': 'text/plain; charset=utf-8' } })
+      } catch (err) {
+        return new Response(`Mislukt: ${String(err)}`, {
+          status: 500,
+          headers: { ...CORS, 'Content-Type': 'text/plain; charset=utf-8' }
+        })
+      }
+    }
     // Geen server-initiated stream nodig; de spec staat 405 toe.
     return new Response(null, { status: 405, headers: CORS })
   }

@@ -128,7 +128,24 @@ Tools voor Claude: `log_eten`, `dag_overzicht`, `verwijder_entry`,
 
 ### Loggen met je stem (iPhone)
 
-Drie manieren, van snel naar snelst:
+**De betrouwbaarste manier: een Opdracht die rechtstreeks logt.** De functie
+accepteert `GET ?tekst=...` en matcht die zin zelf tegen je favorieten — geen
+AI, dus altijd hetzelfde resultaat en met jouw eigen porties:
+
+1. Opdrachten-app → **+**
+2. Actie **Dicteer tekst** — taal **Nederlands**, stop "na pauze"
+3. Actie **URL** met:
+   `https://<ref>.supabase.co/functions/v1/fatsecret-mcp?key=<MCP_KEY>&tekst=`
+   en daarachter de variabele *Gedicteerde tekst*
+4. Actie **Haal inhoud op van URL** (methode GET)
+5. Actie **Toon melding** (of *Spreek tekst uit*) met de *Inhoud van URL*
+6. Noem de opdracht **Eten loggen** → "Hey Siri, eten loggen", en koppel hem
+   aan de **actieknop** of **dubbeltik op de achterkant**
+
+Je krijgt direct terug wat er gelogd is en je dagtotaal. Producten die niet bij
+je favorieten staan worden niet gegokt maar gemeld.
+
+Via de Claude-app kan ook:
 
 1. **Widget op je beginscherm** — houd het beginscherm ingedrukt → **+** →
    Claude → de widget met de drie knoppen. De microfoonknop opent Claude
